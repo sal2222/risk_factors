@@ -121,9 +121,7 @@ For individuals who meet the case definition:
 df %>% 
   group_by(studyid) %>% 
   count() %>% 
-  arrange(desc(n)) %>% 
-  summary(n)
-
+  arrange(desc(n)) 
 df %>% 
   group_by(studyid) %>% 
   count() %>% 
@@ -221,7 +219,8 @@ df_non_rme %>%
 df_hsi <-
   df_non_rme %>% 
     bind_rows(df_rme) %>% 
-    mutate(hsi = as_factor(hsi))
+    mutate(hsi = as_factor(hsi), 
+           id = row_number())
 
 ```
 
@@ -254,6 +253,7 @@ df_hsi %>%
 
 
 ## Apply case definitions
+Limit to one incident case per subject-year
 
 ```{r}
 
@@ -274,7 +274,7 @@ df_hsi %>%
 # Remove `heat_exhaustion` or `other` if `heat_stroke` in studyid/year stratum
 
 clean_non_heat_stroke <-
-  encounters_diag %>% 
+  df_hsi %>% 
     dplyr::mutate(year = lubridate::year(d_event)) %>% 
     janitor::get_dupes(studyid, year) %>% # extract sets of instances with > 1 obs per studyid per year
     group_by(studyid, year) %>% 
@@ -287,7 +287,7 @@ clean_non_heat_stroke # obs to be removed
 
 
 clean_df_step1 <-
-    encounters_diag %>% 
+    df_hsi %>% 
       dplyr::setdiff(clean_non_heat_stroke)  # remove rows that appear in `clean_non_heat_stroke`
 
 # Inspect
@@ -295,21 +295,7 @@ clean_df_step1 <-
 clean_df_step1 %>% 
   count(hsi)
 
-clean_df_step1 %>% 
-  dplyr::group_by(source) %>% 
-  count(hsi)
 
-# clean_df_step1 %>%
-#   mutate(year = lubridate::year(d_event)) %>%
-#   group_by(year, source) %>%
-#   summarise(n = dplyr::n()) %>%
-#   ggplot(aes(x = year, y = n, color = source)) +
-#     geom_point() +
-#     geom_line()
-
-
-
-  
  # Prioritize Hospitalizations
  
 clean_prioritize_hosp <-
@@ -358,49 +344,29 @@ drop_repeat_vists <-
     dplyr::select(-dupe_count, -year)
 
 # Join with `persons` df for bmi
-encounters_casedef <-  
+casedef <-  
   clean_df_step3 %>% 
     dplyr::setdiff(drop_repeat_vists) %>% 
     dplyr::left_join(persons, by = "studyid")
 
-# write_rds(encounters_casedef, "data/encounters_casedef.rds")
 
-# encounters_casedef <-  
-#   read_rds("data/encounters_casedef.rds")
+# Match with full dataset with new column for casedef
 
+df_hsi <-
+  df_hsi %>% 
+    mutate(casedef = if_else(id %in% casedef$id, 1, 0))
 
-# remove interim data cleaning objects
-rm(encounters_no_other, clean_df_step1, clean_df_step2, clean_df_step3, drop_repeat_vists, clean_non_heat_stroke, clean_prioritize_hosp, clean_prioritize_rme)
-```
+df_hsi %>% count(casedef)
 
-
-## Plot case definition dataset (including "other" HSI)
-```{r}
-encounters_casedef  %>% 
-  mutate(year = lubridate::year(d_event)) %>% 
-  group_by(year, source, hsi) %>% 
-  summarise(n = dplyr::n()) %>% 
-  ggplot(aes(x = year, y = n, color = hsi)) +
-    geom_point() +
-    geom_line() +
-  facet_wrap(~source)
+#write_rds(df_hsi, "data/df_hsi.rds")
 
 
-encounters_casedef %>% 
-  ggplot(aes(x = hsi)) +
-    geom_bar(stat = "count") + 
-    stat_count(geom = "text", colour = "white", size = 5,
-    aes(label = ..count..),position = position_stack(vjust = 0.5)) +
-    coord_flip() +
-    theme_bw() +
-    theme(axis.text.y = element_text(size = 15)) 
+
 
 
 ```
 
-```{r}
-encounters_casedef <-
-  read_rds("data/encounters_casedef.rds")
 
-```
+
+
 
