@@ -351,11 +351,29 @@ casedef <-
 
 
 # Match with full dataset with new column for casedef
+# Add BMI categories
+# Add year and decade
 
 df_hsi <-
   df_hsi %>% 
-    mutate(casedef = if_else(id %in% casedef$id, 1, 0))
-
+    mutate(casedef = if_else(id %in% casedef$id, 1, 0),
+           bmi_cat =
+               as.factor(case_when(
+                 bmi < 18.5 ~ "underweight",
+                 bmi >= 18.5 & bmi < 25 ~ "normal",
+                 bmi >= 25 & bmi < 30 ~ "overweight",
+                 bmi >= 30 ~ "obese"
+               )),
+           age = fct_relevel(age, ">=40", after = Inf),
+           rhabdo = as.factor(rhabdo),
+           casedef = as.factor(casedef),
+           year = lubridate::year(d_event),
+           decade = as.factor(floor(year / 10) * 10)) %>% 
+   mutate_if(is.character, as.factor) 
+  
+           
+           
+   
 df_hsi %>% count(casedef)
 
 #write_rds(df_hsi, "data/df_hsi.rds")
@@ -368,5 +386,128 @@ df_hsi %>% count(casedef)
 
 
 
+```{r}
 
+df_hsi <-
+  read_rds("data/df_hsi.rds")
+
+Hmisc::describe(df_hsi)
+
+```
+
+
+## Table 1
+
+
+### Labels
+```{r}
+
+# Labels for Table
+
+label(df_hsi$hsi) <- "HSI Diagnosis"
+label(df_hsi$age) <- "Age Group"
+label(df_hsi$sex) <- "Sex"
+label(df_hsi$race_ethnic) <- "Race/Ethnicity"
+label(df_hsi$grade) <- "Grade Group"
+label(df_hsi$service) <- "Service Branch"
+label(df_hsi$bmi) <- "BMI"
+label(df_hsi$rhabdo) <- "Rhabdomyolysis Co-morbidity"
+label(df_hsi$casedef) <- "Case-defined HSI (unique incidence)"
+label(df_hsi$bmi_cat) <- "BMI Categories"
+label(df_hsi$decade) <- "Decade of Incidence"
+
+
+
+```
+
+
+
+
+All
+```{r}
+
+## Outcome table
+```{r}
+
+
+
+to_table1 <-
+  df_hsi %>% 
+   
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, casedef) %>% 
+       mutate(service = recode(service,
+            "A" = "Army",
+            "C" = "Coast Guard",
+            "F" = "Air Force",
+            "M" = "Marine Corps",
+            "N" = "Navy"),
+            source = recode(source,
+            "INPATIENT" = "In-Patient",
+            "OUTPATIENT" = "Out-Patient",
+            "RME" = "Reportable Event"),
+            hsi = recode(hsi,
+            "heat_exhaustion" = "Heat Exhaustion",
+            "heat_stroke" = "Heat Stroke"),
+            sex = recode(sex,
+            "F" = "Female",
+            "M" = "Male",
+            "Z" = "Unknown")
+            ) 
+
+
+
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + casedef | source, data = to_table1)
+
+
+
+
+
+```
+
+
+## Casedef only
+
+```{r}
+
+to_table1_casedef <-
+  df_hsi %>% 
+    filter(casedef == 1) %>% 
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo) %>% 
+       mutate(service = recode(service,
+            "A" = "Army",
+            "C" = "Coast Guard",
+            "F" = "Air Force",
+            "M" = "Marine Corps",
+            "N" = "Navy"),
+            source = recode(source,
+            "INPATIENT" = "In-Patient",
+            "OUTPATIENT" = "Out-Patient",
+            "RME" = "Reportable Event"),
+            hsi = recode(hsi,
+            "heat_exhaustion" = "Heat Exhaustion",
+            "heat_stroke" = "Heat Stroke"),
+            sex = recode(sex,
+            "F" = "Female",
+            "M" = "Male",
+            "Z" = "Unknown")
+            ) 
+
+
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi | source, data = to_table1_casedef)
+
+```
+
+
+
+
+
+
+## BMI Tables
+
+```{r}
+
+
+
+
+```
 
