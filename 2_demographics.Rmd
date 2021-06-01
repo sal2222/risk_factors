@@ -18,7 +18,8 @@ library(skimr)
 library(zoo)
 library(naniar)
 library(readxl)
-library(simstudy)
+#library(simstudy)
+
 
 ```
 
@@ -68,7 +69,7 @@ demog_long <-
 
 demog_long %>% 
   group_by(year, cat) %>% 
-  summarise(sum_pop = mean(sum_pop)) %>% View()
+  summarise(sum_pop = mean(sum_pop)) 
 
 ```
 
@@ -77,6 +78,8 @@ demog_long %>%
 
 ## Simulate active duty population for each year
 
+Note: limitation of simulated population --
+  We do not know the correlations between variables (will be strong between age and rank; these variables should be evaluated independently)
 
 ```{r}
 
@@ -128,289 +131,47 @@ sim_fun = function(df, pop) {
 }
 
 
-
 sim_df <-
-  map2(.x = demographics$data, .y = demographics$pop, .f = sim_fun)
+  demographics %>% 
+    mutate(sim_pop = 
+      map2(.x = demographics$data, .y = demographics$pop, .f = sim_fun))
 
 
 
+sim_df
 
+
+# write_rds(sim_df, file = "data/sim_df.rds")
+
+# sim_df <- read_rds(file = "data/sim_df.rds")
 ```
 
 
-
-
-
-
-
-
-
-
---------------------------------------------------------------------------
-Draft code 
-
+## Inspect sim_pop
 ```{r}
 
+sim_df$sim_pop[[1]] %>% 
+  head()
 
-  data.frame(
-    age = sample(x= 1:6, size = 10000, replace = TRUE, prob = c(
-      . %>% filter(var %in% "age1") %>% pull(proportion),
-      . %>% filter(var %in% "age2") %>% pull(proportion),
-      . %>% filter(var %in% "age3") %>% pull(proportion),
-      . %>% filter(var %in% "age4") %>% pull(proportion),
-      . %>% filter(var %in% "age5") %>% pull(proportion),
-      . %>% filter(var %in% "age6") %>% pull(proportion)
-      )),
-    sex = sample(x = 1:2, size = 10000, replace = TRUE, prob = c(
-      . %>% filter(var %in% "sex1") %>% pull(proportion),
-      . %>% filter(var %in% "sex2") %>% pull(proportion)
-       )),
-    grade = sample(x = 1:4, size = 10000, replace = TRUE, prob = c(
-      . %>% filter(var %in% "grade1") %>% pull(proportion),
-      . %>% filter(var %in% "grade2") %>% pull(proportion),
-      . %>% filter(var %in% "grade3") %>% pull(proportion),
-      . %>% filter(var %in% "grade4") %>% pull(proportion)
-    )),  
-    race = sample(x = 1:3, size = 10000, replace = TRUE,prob = c(
-      . %>% filter(var %in% "race1") %>% pull(proportion),
-      . %>% filter(var %in% "race2") %>% pull(proportion),
-      . %>% filter(var %in% "race3") %>% pull(proportion)
-    )),  
-    service = sample(x = 1:4, size = 10000, replace = TRUE, prob = c(
-      . %>% filter(var %in% "service1") %>% pull(proportion),
-      . %>% filter(var %in% "service2") %>% pull(proportion),
-      . %>% filter(var %in% "service3") %>% pull(proportion),
-      . %>% filter(var %in% "service4") %>% pull(proportion)
-    ))
-)
 
-
-
-data_1990 <-
-  demog_long %>%
-    filter(year %in% "1990") %>% 
-    dplyr::select(-year)
-
-
-
-
-
-data.frame(
-  age = sample(1:6, pop, replace = TRUE, prob = c(p1a, p2a, p3a, p4a, p5a, p6a)),
-  sex = sample(1:2, pop, replace = TRUE, prob = c(p1s, p2s)),
-  grade = sample(1:4, pop, replace = TRUE, prob = c(p1g, p2g, p3g, p4g)),  
-  race = sample(1:3, pop, replace = TRUE, prob = c(p1r, p2r, p3r)),  
-  service = sample(1:4, pop, replace = TRUE, prob = c(p1ser, p2ser, p3ser, p4ser))
-)
-  
-  data_1990 %>% 
-  
-
-  
-sample(c('male', 'female'), 10000, replace=TRUE)
-
- sample( LETTERS[1:4], 10000, replace=TRUE, prob=c(0.1, 0.2, 0.65, 0.05) ) %>% 
-   as_tibble()
-```
-
-
-
-
-
-
-
-## Simstudy code
-`simstudy` package
-
-categorical
-A categorical distribution is a discrete data distribution taking on values from 1 to K, with each value representing a specific category, and there are K categories. The categories may or may not be ordered. For a categorical variable with k categories, the formula is a string of probabilities that sum to 1, each separated by a semi-colon: (p1;p2;...;pk). p1 is the probability of the random variable falling in category 1, p2 is the probability of category 2, etc. The probabilities can be specified as functions of other variables previously defined. The link options are identity or logit. The variance field does not apply to the categorical distribution.
-
-```{r}
-
-set.seed(82)
-
-
-
-def <- simstudy::defData(varname = "age", dist = "categorical", 
-                         formula = "p1a;p2a;p3a;p4a;p5a;p6a")
-
-def <- simstudy::defData(def, varname = "sex", dist = "categorical", 
-                         formula = "p1s;p2s")
-
-def <- simstudy::defData(def, varname = "grade", dist = "categorical", 
-                         formula = "p1g;p2g;p3g;p4g")
-
-def <- simstudy::defData(def, varname = "race", dist = "categorical", 
-                         formula = "p1r;p2r;p3r")
-
-def <- simstudy::defData(def, varname = "service", dist = "categorical", 
-                         formula = "p1ser;p2ser;p3ser;p4ser")
-
-def
-
-
-
-
-sample_df <-
-  demog_long %>% filter(year %in% "2019")
-
-
-
-def <- simstudy::defData(varname = "age", dist = "categorical", 
-                         formula = genCatFormula(p1a,p2a,p3a,p4a,p5a,p6a))
-
-def <- simstudy::defData(def, varname = "sex", dist = "categorical", 
-                         formula = genCatFormula(p1s,p2s))
-
-def <- simstudy::defData(def, varname = "grade", dist = "categorical", 
-                         formula = genCatFormula(p1g,p2g,p3g,p4g))
-
-def <- simstudy::defData(def, varname = "race", dist = "categorical", 
-                         formula = genCatFormula(p1r,p2r,p3r))
-
-def <- simstudy::defData(def, varname = "service", dist = "categorical", 
-                         formula = genCatFormula(p1ser,p2ser,p3ser,p4ser))
-
-def
-
-
-
-
-
-
- pop <- 10000
-  
-  p1a <- sample_df %>% filter(var %in% "age1") %>% pull(proportion)
-  p2a <- sample_df %>% filter(var %in% "age2") %>% pull(proportion)
-  p3a <- sample_df %>% filter(var %in% "age3") %>% pull(proportion)
-  p4a <- sample_df %>% filter(var %in% "age4") %>% pull(proportion)
-  p5a <- sample_df %>% filter(var %in% "age5") %>% pull(proportion)
-  p6a <- sample_df %>% filter(var %in% "age6") %>% pull(proportion)
-  
-  p1s <- sample_df %>% filter(var %in% "sex1") %>% pull(proportion)
-  p2s <- sample_df %>% filter(var %in% "sex2") %>% pull(proportion)
-  
-  p1g <- sample_df %>% filter(var %in% "grade1") %>% pull(proportion)
-  p2g <- sample_df %>% filter(var %in% "grade2") %>% pull(proportion)
-  p3g <- sample_df %>% filter(var %in% "grade3") %>% pull(proportion)
-  p4g <- sample_df %>% filter(var %in% "grade4") %>% pull(proportion)
-  
-  p1r <- sample_df %>% filter(var %in% "race1") %>% pull(proportion)
-  p2r <- sample_df %>% filter(var %in% "race2") %>% pull(proportion)
-  p3r <- sample_df %>% filter(var %in% "race3") %>% pull(proportion)
-  
-  p1ser <- sample_df %>% filter(var %in% "service1") %>% pull(proportion)
-  p2ser <- sample_df %>% filter(var %in% "service2") %>% pull(proportion)
-  p3ser <- sample_df %>% filter(var %in% "service3") %>% pull(proportion)
-  p4ser <- sample_df %>% filter(var %in% "service4") %>% pull(proportion)
-
-
-
-genData(pop, def)
-
-```
-
-
-
-
-
-
-
-```{r}
-set.seed(82)
-
-
-sim_fun = function(df) {
-
- # pop <- df %>% filter(var %in% "service1") %>% pull(sum_pop) %>% round(., digits = 0)
-  
-  pop <- 10000
-  
-  p1a <- df %>% filter(var %in% "age1") %>% pull(proportion)
-  p2a <- df %>% filter(var %in% "age2") %>% pull(proportion)
-  p3a <- df %>% filter(var %in% "age3") %>% pull(proportion)
-  p4a <- df %>% filter(var %in% "age4") %>% pull(proportion)
-  p5a <- df %>% filter(var %in% "age5") %>% pull(proportion)
-  p6a <- df %>% filter(var %in% "age6") %>% pull(proportion)
-  
-  p1s <- df %>% filter(var %in% "sex1") %>% pull(proportion)
-  p2s <- df %>% filter(var %in% "sex2") %>% pull(proportion)
-  
-  p1g <- df %>% filter(var %in% "grade1") %>% pull(proportion)
-  p2g <- df %>% filter(var %in% "grade2") %>% pull(proportion)
-  p3g <- df %>% filter(var %in% "grade3") %>% pull(proportion)
-  p4g <- df %>% filter(var %in% "grade4") %>% pull(proportion)
-  
-  p1r <- df %>% filter(var %in% "race1") %>% pull(proportion)
-  p2r <- df %>% filter(var %in% "race2") %>% pull(proportion)
-  p3r <- df %>% filter(var %in% "race3") %>% pull(proportion)
-  
-  p1ser <- df %>% filter(var %in% "service1") %>% pull(proportion)
-  p2ser <- df %>% filter(var %in% "service2") %>% pull(proportion)
-  p3ser <- df %>% filter(var %in% "service3") %>% pull(proportion)
-  p4ser <- df %>% filter(var %in% "service4") %>% pull(proportion)
-
-  
-
-
-def <- simstudy::defData(varname = "age", dist = "categorical", 
-                         formula = genCatFormula(p1a,p2a,p3a,p4a,p5a,p6a))
-
-def <- simstudy::defData(def, varname = "sex", dist = "categorical", 
-                         formula = genCatFormula(p1s,p2s))
-
-def <- simstudy::defData(def, varname = "grade", dist = "categorical", 
-                         formula = genCatFormula(p1g,p2g,p3g,p4g))
-
-def <- simstudy::defData(def, varname = "race", dist = "categorical", 
-                         formula = genCatFormula(p1r,p2r,p3r))
-
-def <- simstudy::defData(def, varname = "service", dist = "categorical", 
-                         formula = genCatFormula(p1ser,p2ser,p3ser,p4ser))
-
-def
-
-genData(pop, def)
-
-  
-}
-
-
-
-
-
-```
-
-
-
-
-```{r}
-sim <-
-  demog_long %>%
-    nest(data = -year) %>% 
-      mutate(sim = map(.x = data, .f = sim_fun)) 
-
-
-sim$sim[4] %>% 
+sim_df$sim_pop[1] %>% 
   as.data.frame() %>% 
   as_tibble()
 
+# Sim age proportions
 
-warnings()
+sim_df$sim_pop[1] %>% 
+  as.data.frame() %>% 
+  as_tibble() %>% 
+  mutate_all(factor) %>% 
+  count(age) %>% 
+  mutate(sim_prop = n / sum(n))
 
-
-demog_long$proportion 
+# Compare to base demographics
 
 demog_long %>% 
-  filter(cat %in% "grade") %>% View()
-  group_by(year) %>%
-  summarise(prop_sum = sum(proportion))
-
-
-
+  filter(year %in% "1990" & cat %in% "age")
 ```
-
-
 
 
 

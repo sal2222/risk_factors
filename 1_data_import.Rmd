@@ -383,15 +383,13 @@ df_hsi %>% count(casedef)
 
 
 
-
 ```
 
 
 
 ```{r}
 
-df_hsi <-
-  read_rds("data/df_hsi.rds")
+# df_hsi <- read_rds("data/df_hsi.rds")
 
 Hmisc::describe(df_hsi)
 
@@ -438,8 +436,7 @@ All
 
 to_table1 <-
   df_hsi %>% 
-   
-    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, casedef, bmi_cat, decade) %>% 
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, casedef, bmi_cat, decade, year) %>% 
        mutate(service = recode(service,
             "A" = "Army",
             "C" = "Coast Guard",
@@ -477,7 +474,7 @@ table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + bm
 to_table1_casedef <-
   df_hsi %>% 
     filter(casedef == 1) %>% 
-    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, bmi_cat, decade) %>% 
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, bmi_cat, decade, year) %>% 
        mutate(service = recode(service,
             "A" = "Army",
             "C" = "Coast Guard",
@@ -517,6 +514,96 @@ table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + casedef 
 
 
 table1::table1(~bmi_cat | decade, data = to_table1)
+
+```
+
+
+## BMI barplots, all observations
+```{r}
+# All observations, by decade
+
+# dodged bars
+
+to_table1 %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_dodge()) +
+    theme_bw()
+
+# relative proportions at each decade/bmi by stacking the bars and then standardising each bar to have the same height
+
+to_table1 %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+# Remove NA's
+
+to_table1 %>%
+  filter(!bmi_cat %in% NA) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+
+# All observations, by year
+
+to_table1 %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+to_table1 %>%
+  filter(!bmi_cat %in% NA) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+```
+
+
+
+## BMI barplots, case defined HSI
+
+```{r}
+
+# dodged bars
+
+to_table1_casedef %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_dodge()) +
+    theme_bw()
+
+# relative proportions at each decade/bmi by stacking the bars and then standardising each bar to have the same height
+
+to_table1_casedef %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+# Remove NA's
+
+to_table1_casedef %>%
+  filter(!bmi_cat %in% NA) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+
+# All observations, by year
+
+to_table1_casedef %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+to_table1_casedef %>%
+  filter(!bmi_cat %in% NA) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
 
 ```
 

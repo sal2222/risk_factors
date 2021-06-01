@@ -1,0 +1,129 @@
+---
+title: "attributal_risk"
+author: "SL"
+date: "6/01/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(haven)
+library(Hmisc)
+library(janitor)
+library(skimr)
+library(zoo)
+library(naniar)
+
+
+```
+
+
+```{r}
+
+df_hsi <- read_rds("data/df_hsi.rds")
+
+sim_df <- read_rds(file = "data/sim_df.rds")
+```
+
+# Create numerically coded risk factor dataframe from `df_hsi` (cases) to match with `sim_df` (controls)
+
+```{r}
+
+
+# Note: race variable is crude, 7 categories in case dataframe, down to 3 in control dataframe (unknowns coded with "other")
+
+
+cases <-
+  df_hsi %>% 
+    filter(!service %in% "C",
+           !year == 2020) %>%  # filter out Coast Guard encounters (not represented in controls)
+    mutate(
+      age = as.factor(case_when(
+        age %in% "<20" ~ "1",
+        age %in% "20-24" ~ "2",
+        age %in% "25-29" ~ "3",
+        age %in% "30-34" ~ "4",
+        age %in% "35-39" ~ "5",
+        age %in% ">=40" ~ "6"
+               )),
+      sex = as.factor(case_when(
+        sex %in% "M" ~ "1",
+        sex %in% "F" ~ "2"
+               )),
+      grade = as.factor(case_when(
+        grade %in% "E1-E4" ~ "1",
+        grade %in% "E5-E9" ~ "2",
+        grade %in% "O1-O3/W1-W3" ~ "3",
+        grade %in% "O4-O10/W4-W5" ~ "4"
+               )),
+      race = as.factor(case_when(
+        race_ethnic %in% "Non-Hispanic White" ~ "1",
+        race_ethnic %in% "Non-Hispanic Black" ~ "2",
+        race_ethnic %in% "TRUE" ~ "3"
+               )),
+      service = as.factor(case_when(
+        service %in% "A" ~ "1",
+        service %in% "N" ~ "2",
+        service %in% "F" ~ "3",
+        service %in% "M" ~ "4",
+    ))) %>% 
+  dplyr::select(year, age, sex, grade, race, service, casedef) %>% 
+  mutate(case = as.factor("1"),
+         year = as.factor(year))
+
+
+cases %>% 
+  Hmisc::describe()
+
+```
+
+
+Prepare control dataframe to match and join with case dataframe 
+```{r}
+
+controls <-
+  sim_df %>% 
+    dplyr::select(year, sim_pop) %>% 
+    unnest(sim_pop) %>% 
+    mutate(casedef = 0,
+           case = 0) %>% 
+    mutate_all(factor)
+
+controls %>% 
+  Hmisc::describe()
+
+```
+
+
+
+```{r}
+
+case_control_df <-
+  cases %>% 
+    bind_rows(controls)
+
+# write_rds(case_control_df, file = "data/case_control_df.rds")
+
+# case_control_df <- read_rds(file = "data/case_control_df.rds"))  
+```
+
+
+Distribution of cases and their matched controls by risk factor levels
+
+Overall (not nested by year)
+
+```{r}
+
+# Among case-definition cases
+
+case_control_df %>% 
+  filter(!(casedef %in% "0" & case %in% "1")) %>% 
+  table1::table1(~ age + sex + grade + race + service | case, data = .)
+
+
+```
+
