@@ -364,6 +364,8 @@ df_hsi <-
                  bmi >= 25 & bmi < 30 ~ "overweight",
                  bmi >= 30 ~ "obese"
                )),
+           bmi_cat = fct_relevel(bmi_cat, 
+                "underweight", "normal", "overweight", "obese"),
            age = fct_relevel(age, ">=40", after = Inf),
            rhabdo = as.factor(rhabdo),
            casedef = as.factor(casedef),
@@ -418,6 +420,9 @@ label(df_hsi$decade) <- "Decade of Incidence"
 
 
 
+
+
+
 ```
 
 
@@ -434,7 +439,7 @@ All
 to_table1 <-
   df_hsi %>% 
    
-    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, casedef) %>% 
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, casedef, bmi_cat, decade) %>% 
        mutate(service = recode(service,
             "A" = "Army",
             "C" = "Coast Guard",
@@ -456,7 +461,7 @@ to_table1 <-
 
 
 
-table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + casedef | source, data = to_table1)
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + bmi_cat + casedef + decade | source, data = to_table1)
 
 
 
@@ -472,7 +477,7 @@ table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + ca
 to_table1_casedef <-
   df_hsi %>% 
     filter(casedef == 1) %>% 
-    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo) %>% 
+    dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, rhabdo, bmi_cat, decade) %>% 
        mutate(service = recode(service,
             "A" = "Army",
             "C" = "Coast Guard",
@@ -493,7 +498,7 @@ to_table1_casedef <-
             ) 
 
 
-table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi | source, data = to_table1_casedef)
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + bmi_cat + decade | source, data = to_table1_casedef)
 
 ```
 
@@ -506,8 +511,12 @@ table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi | so
 
 ```{r}
 
+# All
+
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + casedef + decade | bmi_cat, data = to_table1)
 
 
+table1::table1(~bmi_cat | decade, data = to_table1)
 
 ```
 
