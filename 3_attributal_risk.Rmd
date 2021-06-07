@@ -17,7 +17,9 @@ library(janitor)
 library(skimr)
 library(zoo)
 library(naniar)
+library(broom)
 
+memory.limit(size = 50000)
 
 ```
 
@@ -108,7 +110,7 @@ case_control_df <-
 
 # write_rds(case_control_df, file = "data/case_control_df.rds")
 
-# case_control_df <- read_rds(file = "data/case_control_df.rds"))  
+# case_control_df <- read_rds(file = "data/case_control_df.rds")  
 ```
 
 
@@ -118,11 +120,127 @@ Overall (not nested by year)
 
 ```{r}
 
-# Among case-definition cases
+# Among case-definition cases...Slow!
 
-case_control_df %>% 
-  filter(!(casedef %in% "0" & case %in% "1")) %>% 
-  table1::table1(~ age + sex + grade + race + service | case, data = .)
+#case_control_df %>% 
+#  filter(!(casedef %in% "0" & case %in% "1")) %>% 
+#  table1::table1(~ age + sex + grade + race + service | case, data = .)
+
+
+```
+
+
+```{r}
+
+
+
+casedef_df <-
+  case_control_df %>% 
+    filter(!(casedef %in% "0" & case %in% "1")) %>%  
+    nest(data = -year) %>% 
+    dplyr::arrange(year)
+  
+
+
+# write_rds(casedef_df, file = "data/casedef_df.rds")
+
+# casedef_df <- read_rds(file = "data/casedef_df.rds")  
+
+
+```
+
+
+
+
+## Logistic regression models by year
+
+```{r}
+
+# Restrict years from: 2010 - 2019
+
+casedef_df <-
+  casedef_df %>% 
+    dplyr::filter(as.integer(as.character(year)) > 2009) %>% 
+     dplyr::filter(as.integer(as.character(year)) < 2020)
+
+# logistic model for Grade, Sex, Race, Service
+
+
+grade_glm = function(df) {
+  glm(case ~ grade + sex + race + service,
+           family = binomial, data = df)
+}
+
+
+# logistic model for Age, Sex, Race, Service
+
+age_glm = function(df) {
+  glm(case ~ age + sex + race + service,
+           family = binomial, data = df)
+}
+
+
+
+casedef_nest <-
+  casedef_df %>% 
+  mutate(mod_grade = 
+           map(data, grade_glm),
+         mod_age = 
+           map(data, age_glm))
+
+
+#casedef_nest %>% 
+ # dplyr::select(-data) %>% 
+  # write_rds(., file = "data/casedef_mods.rds")
+
+# casedef_nest <- read_rds(file = "data/casedef_mods.rds")  
+
+casedef_nest$mod_grade[[1]]
+
+
+# Model summaries
+
+  # Glance
+grade_glance <-
+  map_df(casedef_nest$mod_grade, broom::glance) 
+
+age_glance <-
+  map_df(casedef_nest$mod_age, broom::glance) 
+
+# write_rds(grade_glance, file = "data/grade_glance.rds")
+# write_rds(age_glance, file = "data/age_glance.rds")
+
+  # Tidy
+
+
+
+grade_tidy <-
+  map(.x = casedef_nest$mod_grade, broom::tidy) 
+  
+
+names(grade_tidy) <- casedef_nest$year
+
+grade_tidy <-
+  grade_tidy %>% 
+    bind_rows(.id = "year")
+
+grade_tidy
+
+# write_rds(grade_tidy, file = "data/grade_tidy.rds")
+
+
+age_tidy <-
+  map(casedef_nest$mod_age, broom::tidy)
+
+
+names(age_tidy) <- casedef_nest$year
+
+age_tidy <-
+  age_tidy %>% 
+    bind_rows(.id = "year")
+
+
+#write_rds(age_tidy, file = "data/age_tidy.rds")
 
 
 ```
