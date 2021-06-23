@@ -71,6 +71,10 @@ demog_long %>%
   group_by(year, cat) %>% 
   summarise(sum_pop = mean(sum_pop)) 
 
+# write_rds(demog, file = "data/demog.rds")
+# write_rds(demog_long, file = "data/demog_long.rds")
+
+
 ```
 
 

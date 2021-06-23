@@ -18,230 +18,198 @@ library(skimr)
 library(zoo)
 library(naniar)
 library(broom)
+library(MASS)
+library(viridis)
 
 memory.limit(size = 50000)
-
+# rm(list = ls())
 ```
 
 
 ```{r}
 
 df_hsi <- read_rds("data/df_hsi.rds")
-
+demog <- read_rds("data/demog.rds")
+demog_long <- read_rds("data/demog_long.rds")
 sim_df <- read_rds(file = "data/sim_df.rds")
 ```
 
-# Create numerically coded risk factor dataframe from `df_hsi` (cases) to match with `sim_df` (controls)
+
+
+Risk: # people get disease / total # at risk
+
+Population attributal risk (PAR, %) / etiological fraction:
+  proportion of all risk factor with outcome to without the RF
+  
+  
+By year  - heatmap?  
 
 ```{r}
 
-
-# Note: race variable is crude, 7 categories in case dataframe, down to 3 in control dataframe (unknowns coded with "other")
-
-
-cases <-
+hsi_coded <-
   df_hsi %>% 
-    filter(!service %in% "C",
-           !year == 2020) %>%  # filter out Coast Guard encounters (not represented in controls)
+    dplyr::select(year, age, sex, race_ethnic, service, grade, casedef, hsi) %>% 
     mutate(
-      age = as.factor(case_when(
-        age %in% "<20" ~ "1",
-        age %in% "20-24" ~ "2",
-        age %in% "25-29" ~ "3",
-        age %in% "30-34" ~ "4",
-        age %in% "35-39" ~ "5",
-        age %in% ">=40" ~ "6"
-               )),
-      sex = as.factor(case_when(
-        sex %in% "M" ~ "1",
-        sex %in% "F" ~ "2"
-               )),
-      grade = as.factor(case_when(
-        grade %in% "E1-E4" ~ "1",
-        grade %in% "E5-E9" ~ "2",
-        grade %in% "O1-O3/W1-W3" ~ "3",
-        grade %in% "O4-O10/W4-W5" ~ "4"
-               )),
-      race = as.factor(case_when(
-        race_ethnic %in% "Non-Hispanic White" ~ "1",
-        race_ethnic %in% "Non-Hispanic Black" ~ "2",
-        race_ethnic %in% "TRUE" ~ "3"
-               )),
-      service = as.factor(case_when(
-        service %in% "A" ~ "1",
-        service %in% "N" ~ "2",
-        service %in% "F" ~ "3",
-        service %in% "M" ~ "4",
-    ))) %>% 
-  dplyr::select(year, age, sex, grade, race, service, casedef) %>% 
-  mutate(case = as.factor("1"),
-         year = as.factor(year))
+      age = recode(
+        age, 
+          "<20" = "age1",
+          "20-24" = "age2",
+          "25-29" = "age3",
+          "30-34" = "age4",
+          "35-39" = "age5",
+          ">=40" = "age6"),
+      sex = recode(
+        sex,
+          "M" = "sex1",
+          "F" = "sex2",
+          "Z" = "sex_NA"),
+      race_ethnic = recode(
+         race_ethnic,
+          "American Indian/Alaskan Native" = "race3",
+          "Asian/Pacific Islander" = "race3",
+          "Hispanic" = "race3",
+          "Non-Hispanic Black" = "race2",
+          "Non-Hispanic White" = "race1",
+          "Other" = "race3",
+          "Unknown" = "race_NA"), 
+      grade = recode(
+         grade,
+          "E1-E4" = "grade1",
+          "E5-E9" = "grade2",
+          "O1-O3/W1-W3" = "grade3",
+          "O4-O10/W4-W5" = "grade4"), 
+      service = recode(
+         service,
+          "A" = "service1",
+          "N" = "service2",
+          "F" = "service3",
+          "M" = "service4",
+          "C" = "service_CG")  #"C" coded as NA
+    ) %>% 
+  rename(race = race_ethnic)
 
 
-cases %>% 
-  Hmisc::describe()
-
-```
-
-
-Prepare control dataframe to match and join with case dataframe 
-```{r}
-
-controls <-
-  sim_df %>% 
-    dplyr::select(year, sim_pop) %>% 
-    unnest(sim_pop) %>% 
-    mutate(casedef = 0,
-           case = 0) %>% 
-    mutate_all(factor)
-
-controls %>% 
-  Hmisc::describe()
-
-```
-
-
-
-```{r}
-
-case_control_df <-
-  cases %>% 
-    bind_rows(controls)
-
-# write_rds(case_control_df, file = "data/case_control_df.rds")
-
-# case_control_df <- read_rds(file = "data/case_control_df.rds")  
-```
-
-
-Distribution of cases and their matched controls by risk factor levels
-
-Overall (not nested by year)
-
-```{r}
-
-# Among case-definition cases...Slow!
-
-#case_control_df %>% 
-#  filter(!(casedef %in% "0" & case %in% "1")) %>% 
-#  table1::table1(~ age + sex + grade + race + service | case, data = .)
+hsi_coded
 
 
 ```
-
-
-```{r}
-
-
-
-casedef_df <-
-  case_control_df %>% 
-    filter(!(casedef %in% "0" & case %in% "1")) %>%  
-    nest(data = -year) %>% 
-    dplyr::arrange(year)
   
 
+```{r}
+demog
+demog_long
 
-# write_rds(casedef_df, file = "data/casedef_df.rds")
+# Filter to remove Coast Guard, and select only case-defined encounters (heat stroke, heat exhaustion)
 
-# casedef_df <- read_rds(file = "data/casedef_df.rds")  
+# pivot long to "cat" and "var"
+# count by year
 
 
+hsi_long <-
+  hsi_coded %>%
+    filter(!service %in% "serviceCG",
+           !hsi %in% "other", # 
+           casedef == 1) %>%
+    dplyr::select(-casedef, -hsi) %>%
+    mutate(across(everything(), as.character)) %>% 
+    pivot_longer(-year, names_to = "cat", values_to = "var") %>% 
+    group_by(year, var) %>% 
+    summarise(n = n()) %>% 
+    mutate(cat = str_replace_all(var, "[:digit:]", ""),
+           cat = str_replace(cat, "_.*", "")) %>% 
+  filter(!cat %in% NA)
+
+
+hsi_long
+
+hsi_long %>% ungroup() %>% count(cat)
+
+
+# Calculate proportion for each variable/year
+
+hsi_prop <-
+  hsi_long %>% 
+    nest(data = c(var, n)) %>%
+    mutate(data = 
+             map(data, ~ .x %>% 
+                        mutate(prop_hsi = n / sum(n),
+                               sum_hsi = sum(n)))) %>% 
+    unnest(cols = c(data)) 
+
+hsi_prop
 ```
 
 
-
-
-## Logistic regression models by year
+## Combine HSI and demog dataframes
 
 ```{r}
 
-# Restrict years from: 2010 - 2019
+hsi_rf <-
+  demog_long %>% 
+    dplyr::select(-cat) %>%  # joing table has cat column
+    left_join(hsi_prop, by = c("year", "var")) %>% 
+  mutate(risk = n / population,
+         prop_ratio = prop_hsi / proportion)
 
-casedef_df <-
-  casedef_df %>% 
-    dplyr::filter(as.integer(as.character(year)) > 2009) %>% 
-     dplyr::filter(as.integer(as.character(year)) < 2020)
+hsi_rf
 
-# logistic model for Grade, Sex, Race, Service
-
-
-grade_glm = function(df) {
-  glm(case ~ grade + sex + race + service,
-           family = binomial, data = df)
-}
+```
 
 
-# logistic model for Age, Sex, Race, Service
+## Risk over time
 
-age_glm = function(df) {
-  glm(case ~ age + sex + race + service,
-           family = binomial, data = df)
-}
+```{r}
 
 
-
-casedef_nest <-
-  casedef_df %>% 
-  mutate(mod_grade = 
-           map(data, grade_glm),
-         mod_age = 
-           map(data, age_glm))
-
-
-#casedef_nest %>% 
- # dplyr::select(-data) %>% 
-  # write_rds(., file = "data/casedef_mods.rds")
-
-# casedef_nest <- read_rds(file = "data/casedef_mods.rds")  
-
-casedef_nest$mod_grade[[1]]
+hsi_rf %>% 
+  mutate(var_num = str_extract(var, "[:digit:]")) %>% 
+  ggplot(aes(x = as.integer(year), y = risk, color = cat, shape = var_num)) +
+    geom_point() +
+    geom_line() +
+  theme_bw()
 
 
-# Model summaries
+# heatmap 
 
-  # Glance
-grade_glance <-
-  map_df(casedef_nest$mod_grade, broom::glance) 
+hsi_rf %>% 
+  ggplot(aes(x = as.integer(year), y = var, fill = risk)) +
+  geom_tile() +
+  scale_fill_viridis(discrete = FALSE) +
+  theme_bw()
 
-age_glance <-
-  map_df(casedef_nest$mod_age, broom::glance) 
-
-# write_rds(grade_glance, file = "data/grade_glance.rds")
-# write_rds(age_glance, file = "data/age_glance.rds")
-
-  # Tidy
+```
 
 
 
-grade_tidy <-
-  map(.x = casedef_nest$mod_grade, broom::tidy) 
-  
+## Risk factor proportion
 
-names(grade_tidy) <- casedef_nest$year
+```{r}
 
-grade_tidy <-
-  grade_tidy %>% 
-    bind_rows(.id = "year")
-
-grade_tidy
-
-# write_rds(grade_tidy, file = "data/grade_tidy.rds")
+hsi_rf %>% 
+  mutate(var_num = str_extract(var, "[:digit:]")) %>% 
+  ggplot(aes(x = as.integer(year), y = prop_ratio, color = cat, shape = var_num)) +
+    geom_point() +
+    geom_line() +
+  theme_bw()
 
 
-age_tidy <-
-  map(casedef_nest$mod_age, broom::tidy)
+# heatmap
 
-
-names(age_tidy) <- casedef_nest$year
-
-age_tidy <-
-  age_tidy %>% 
-    bind_rows(.id = "year")
-
-
-#write_rds(age_tidy, file = "data/age_tidy.rds")
+hsi_rf %>% 
+  ggplot(aes(x = as.integer(year), y = var, fill = prop_ratio)) +
+  geom_tile() +
+  scale_fill_viridis(discrete = FALSE) +
+  theme_bw()
 
 
 ```
+
+
+
+
+## Statistical Tests
+
+
+
+
 

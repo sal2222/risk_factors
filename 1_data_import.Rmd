@@ -462,8 +462,6 @@ table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + bm
 
 
 
-
-
 ```
 
 
@@ -496,6 +494,8 @@ to_table1_casedef <-
 
 
 table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + rhabdo + bmi + bmi_cat + decade | source, data = to_table1_casedef)
+
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic, data = to_table1_casedef)
 
 ```
 
@@ -606,4 +606,129 @@ to_table1_casedef %>%
     theme_bw()
 
 ```
+
+
+## BMI: Restrict to Age < 25
+
+```{r}
+
+# dodged bars
+
+to_table1_casedef %>%
+  filter(age %in% c("<20", "20-24")) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_dodge()) +
+    theme_bw()
+
+# relative proportions at each decade/bmi by stacking the bars and then standardizing each bar to have the same height
+
+to_table1_casedef %>% 
+    filter(age %in% c("<20", "20-24")) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+# Remove NA's
+
+to_table1_casedef %>%
+  filter(age %in% c("<20", "20-24"),
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+
+# All observations, by year
+
+to_table1_casedef %>%
+    filter(age %in% c("<20", "20-24"),
+         year < 2020) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+to_table1_casedef %>%
+    filter(age %in% c("<20", "20-24"),
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+```
+
+
+
+## BMI: Restrict to Age < 20
+
+```{r}
+
+# dodged bars
+
+to_table1_casedef %>%
+  filter(age %in% "<20") %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_dodge()) +
+    theme_bw()
+
+# relative proportions at each decade/bmi by stacking the bars and then standardizing each bar to have the same height
+
+to_table1_casedef %>% 
+    filter(age %in% "<20") %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+# Remove NA's
+
+to_table1_casedef %>%
+  filter(age %in% "<20",
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = decade, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+
+# All observations, by year
+
+to_table1_casedef %>%
+    filter(age %in% "<20",
+         year < 2020) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+to_table1_casedef %>%
+    filter(age %in% "<20",
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+
+to_table1_casedef %>%
+    filter(age %in% "<20",
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = as.factor(year), y = bmi)) +
+    geom_boxplot() +
+    theme_bw()
+
+```
+
+
+
+
+
+
+
 
