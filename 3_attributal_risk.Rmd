@@ -36,14 +36,6 @@ sim_df <- read_rds(file = "data/sim_df.rds")
 
 
 
-Risk: # people get disease / total # at risk
-
-Population attributal risk (PAR, %) / etiological fraction:
-  proportion of all risk factor with outcome to without the RF
-  
-  
-By year  - heatmap?  
-
 ```{r}
 
 hsi_coded <-
@@ -210,6 +202,89 @@ hsi_rf %>%
 ## Statistical Tests
 
 
+Chi-square goodness of fit: Compare multiple observed proportions to expected probabilities
+
+
+Null hypothesis (H0): There is no significant difference between the observed and the expected value.
+Alternative hypothesis (Ha): There is a significant difference between the observed and the expected value.
+
+
+simulate.p.value = TRUE, a logical indicating whether to compute p-values by Monte Carlo simulation.
+fisher.test(a)
+
+```{r}
+
+chisq <-
+  hsi_rf %>% 
+    nest(data = c(-year, -cat)) %>% 
+    mutate(chisq =
+             map(data,
+             ~chisq.test(x = .$n, p = .x$proportion))
+  )
+
+
+
+
+chisq_sim <-
+  hsi_rf %>% 
+    nest(data = c(-year, -cat)) %>% 
+    mutate(chisq =
+             map(data,
+             ~chisq.test(x = .$n, p = .x$proportion,
+                         simulate.p.value = TRUE, B = 2000))
+  )
+
+
+# write_rds(chisq_sim, file = "data/chisq_sim")
+
+chisq_sim <- read_rds(file = "data/chisq_sim")
+
+
+chisq_sim <-
+  chisq_sim %>% 
+    mutate(chisq_tidy = map(chisq, broom::tidy))
+
+
+chisq_sim
+
+
+# Chisq significance stars
+
+chisq_sim %>% 
+  unnest(chisq_tidy) %>%
+  dplyr::select(year, cat, statistic, p.value) %>% 
+   mutate(signif = case_when(
+        p.value <= 0.05 & p.value > 0.01 ~ "*",
+        p.value <= 0.01 & p.value > 0.001 ~ "**",
+        p.value <= 0.001 ~ "***",
+        TRUE ~ ""
+    )) 
+
+# Chisq significance, wide table by year
+chisq_sig_wide <-
+  chisq_sim %>% 
+    unnest(chisq_tidy) %>%
+    dplyr::select(year, cat, statistic, p.value) %>% 
+    mutate(signif = case_when(
+        p.value <= 0.05 & p.value > 0.01 ~ "*",
+        p.value <= 0.01 & p.value > 0.001 ~ "**",
+        p.value <= 0.001 ~ "***",
+        TRUE ~ ""
+    )) %>%
+    dplyr::select(year, cat, signif) %>% 
+    pivot_wider(names_from = year, values_from = signif) 
+
+
+chisq_sig_wide 
+
+chisq_sig_wide %>% 
+  View()
+         
+
+
+
+
+```
 
 
 
