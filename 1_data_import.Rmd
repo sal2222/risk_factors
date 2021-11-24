@@ -615,7 +615,8 @@ to_table1_casedef %>%
 # dodged bars
 
 to_table1_casedef %>%
-  filter(age %in% c("<20", "20-24")) %>% 
+  filter(age %in% c("<20", "20-24"),
+          year < 2020) %>% 
   ggplot(aes(x = decade, fill = bmi_cat)) +
     geom_bar(position = position_dodge()) +
     theme_bw()
@@ -658,6 +659,38 @@ to_table1_casedef %>%
     geom_bar(position = position_fill()) +
     theme_bw()
 
+# boxplot
+
+to_table1_casedef %>%
+    filter(age %in% c("<20", "20-24"),
+         !bmi_cat %in% NA,
+         year < 2020) %>% 
+  ggplot(aes(x = as.factor(year), y = bmi)) +
+    geom_boxplot() +
+    theme_bw()
+
+
+
+# scatterplot
+
+to_table1_casedef %>%
+  filter(age %in% c("<20", "20-24"),
+         !bmi_cat %in% NA,
+         year < 2020) %>%
+ggplot(aes(x = year, y = bmi)) +
+    geom_point() +
+    geom_smooth(method = "lm") +
+    theme_bw()
+
+
+# Linear model
+
+to_table1_casedef %>%
+    filter(age %in% c("<20", "20-24"),
+         !bmi_cat %in% NA,
+         year < 2020) %>%
+  lm(bmi ~ year, data = .) %>% 
+  broom::tidy()
 
 ```
 

@@ -1,5 +1,5 @@
 ---
-title: "attributal_risk"
+title: "3a-attributal_risk"
 author: "SL"
 date: "6/01/2021"
 output: html_document
@@ -20,6 +20,7 @@ library(naniar)
 library(broom)
 library(MASS)
 library(viridis)
+library(ggrepel)
 
 memory.limit(size = 50000)
 # rm(list = ls())
@@ -28,124 +29,49 @@ memory.limit(size = 50000)
 
 ```{r}
 
-df_hsi <- read_rds("data/df_hsi.rds")
-demog <- read_rds("data/demog.rds")
-demog_long <- read_rds("data/demog_long.rds")
-# sim_df <- read_rds(file = "data/sim_df.rds")
+hsi_rf <- read_rds("data/hsi_rf.rds")
+
+hsi_rf %>% View()
 ```
 
-
+Recode category names
+Restrict to 1998 - 2019
 
 ```{r}
 
-hsi_coded <-
-  df_hsi %>% 
-    dplyr::select(year, age, sex, race_ethnic, service, grade, casedef, hsi) %>% 
-    mutate(
-      age = recode(
-        age, 
-          "<20" = "age1",
-          "20-24" = "age2",
-          "25-29" = "age3",
-          "30-34" = "age4",
-          "35-39" = "age5",
-          ">=40" = "age6"),
-      sex = recode(
-        sex,
-          "M" = "sex1",
-          "F" = "sex2",
-          "Z" = "sex_NA"),
-      race_ethnic = recode(
-         race_ethnic,
-          "American Indian/Alaskan Native" = "race3",
-          "Asian/Pacific Islander" = "race3",
-          "Hispanic" = "race3",
-          "Non-Hispanic Black" = "race2",
-          "Non-Hispanic White" = "race1",
-          "Other" = "race3",
-          "Unknown" = "race_NA"), 
-      grade = recode(
-         grade,
-          "E1-E4" = "grade1",
-          "E5-E9" = "grade2",
-          "O1-O3/W1-W3" = "grade3",
-          "O4-O10/W4-W5" = "grade4"), 
-      service = recode(
-         service,
-          "A" = "service1",
-          "N" = "service2",
-          "F" = "service3",
-          "M" = "service4",
-          "C" = "service_CG")  #"C" coded as NA
-    ) %>% 
-  rename(race = race_ethnic)
+hsi_factors <-
+  hsi_rf %>%
+    dplyr::filter(year > 1997 & year < 2020) %>% 
+     mutate(
+          var = recode(
+            var,
+              "sex1" = "Male",
+              "sex2" = "Female",
+              "race1" = "White",
+              "race2" = "Black",
+              "race3" = "Other",
+              "service1" = "Army",
+              "service2" = "Navy",
+              "service3" = "Air Force",
+              "service4" = "Marine Corps",
+              "age1" = "<20",
+              "age2"= "20-24",
+              "age3" = "25-29",
+              "age4" = "30-34",
+              "age5" = "35-39",
+              "age6" = ">=40",
+              "grade1" = "E1-E4",
+              "grade2" = "E5-E9",
+              "grade3" = "O1-O3/W1-W3" ,
+              "grade4" = "O4-O10/W4-W5")
+          )
 
+hsi_factors
 
-hsi_coded
-
-
-```
-  
-
-```{r}
-demog
-demog_long
-
-# Filter to remove Coast Guard, and select only case-defined encounters (heat stroke, heat exhaustion)
-
-# pivot long to "cat" and "var"
-# count by year
-
-
-hsi_long <-
-  hsi_coded %>%
-    filter(!service %in% "serviceCG",
-           !hsi %in% "other", # 
-           casedef == 1) %>%
-    dplyr::select(-casedef, -hsi) %>%
-    mutate(across(everything(), as.character)) %>% 
-    pivot_longer(-year, names_to = "cat", values_to = "var") %>% 
-    group_by(year, var) %>% 
-    summarise(n = n()) %>% 
-    mutate(cat = str_replace_all(var, "[:digit:]", ""),
-           cat = str_replace(cat, "_.*", "")) %>% 
-  filter(!cat %in% NA)
-
-
-hsi_long
-
-hsi_long %>% ungroup() %>% count(cat)
-
-
-# Calculate proportion for each variable/year
-
-hsi_prop <-
-  hsi_long %>% 
-    nest(data = c(var, n)) %>%
-    mutate(data = 
-             map(data, ~ .x %>% 
-                        mutate(prop_hsi = n / sum(n),
-                               sum_hsi = sum(n)))) %>% 
-    unnest(cols = c(data)) 
-
-hsi_prop
+# write_rds(hsi_factors, "data/hsi_factors.rds")
 ```
 
 
-## Combine HSI and demog dataframes
-
-```{r}
-
-hsi_rf <-
-  demog_long %>% 
-    dplyr::select(-cat) %>%  # joing table has cat column
-    left_join(hsi_prop, by = c("year", "var")) %>% 
-  mutate(risk = n / population,
-         prop_ratio = prop_hsi / proportion)
-
-hsi_rf
-
-```
 
 
 ## Risk over time
@@ -153,12 +79,24 @@ hsi_rf
 ```{r}
 
 
-hsi_rf %>% 
-  mutate(var_num = str_extract(var, "[:digit:]")) %>% 
-  ggplot(aes(x = as.integer(year), y = risk, color = cat, shape = var_num)) +
-    geom_point() +
-    geom_line() +
-  theme_bw()
+hsi_factors %>%
+   mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+          Risk = risk * 10000) %>%
+   ggplot(aes(x = as.integer(year), y = Risk)) +
+    geom_point(aes(shape = var)) +
+    geom_line(aes(color = var)) +
+    facet_grid(cat~.) +
+    geom_text_repel(aes(label = label),
+                  nudge_x = 1,
+                  size = 3,
+                  na.rm = TRUE) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
+    scale_x_continuous(breaks = scales::pretty_breaks(10)) + 
+  labs(x = "Year",
+       y = "HSI cases per 10,000")
+
 
 
 # heatmap 
