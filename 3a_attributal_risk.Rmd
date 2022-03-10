@@ -31,7 +31,8 @@ memory.limit(size = 50000)
 
 hsi_rf <- read_rds("data/hsi_rf.rds")
 
-hsi_rf %>% View()
+#hsi_rf %>% skimr::skim()
+# hsi_rf %>% count(var)
 ```
 
 Recode category names
@@ -201,6 +202,7 @@ chisq_sim %>%
 # Chisq significance, wide table by year
 chisq_sig_wide <-
   chisq_sim %>% 
+    dplyr::filter(year > 1997 & year < 2020) %>% 
     unnest(chisq_tidy) %>%
     dplyr::select(year, cat, statistic, p.value) %>% 
     mutate(signif = case_when(
@@ -216,11 +218,28 @@ chisq_sig_wide <-
 chisq_sig_wide 
 
 chisq_sig_wide %>% 
-  View()
-         
+  clipr::write_clip()
 
+# Chi sq Values table
 
+chisq_val_wide <-
+  chisq_sim %>% 
+    dplyr::filter(year > 1997 & year < 2020) %>% 
+    unnest(chisq_tidy) %>%
+    dplyr::select(year, cat, statistic, p.value) %>% 
+    mutate(signif = case_when(
+        p.value <= 0.05 & p.value > 0.01 ~ "*",
+        p.value <= 0.01 & p.value > 0.001 ~ "**",
+        p.value <= 0.001 ~ "***",
+        TRUE ~ ""
+    )) %>%
+    dplyr::select(year, cat, statistic) %>% 
+    pivot_wider(names_from = year, values_from = statistic) 
 
+chisq_val_wide 
+
+chisq_val_wide %>% 
+  clipr::write_clip()
 
 ```
 

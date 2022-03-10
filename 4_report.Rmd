@@ -22,6 +22,8 @@ library(scales)
 library(viridis)
 library(RColorBrewer)
 library(ggrepel)
+library(table1)
+library(gmodels)
 
 ```
 
@@ -34,6 +36,8 @@ df_hsi <- read_rds("data/df_hsi.rds")
 Hmisc::describe(df_hsi)
 
 hsi_factors <- read_rds("data/hsi_factors.rds")
+
+#hsi_factors %>% count(var)
 ```
 
 
@@ -44,6 +48,12 @@ Recode for display
 Restrict to years: 1998 - 2019
 
 ```{r}
+
+
+
+df_hsi %>% count(service)
+
+
 df_hsi_table_other <-
   df_hsi %>%
     dplyr::filter(year > 1997 & year < 2020) %>% 
@@ -81,11 +91,53 @@ df_hsi_table <-
 ```
 
 
+## Table formatting
+```{r}
+
+
+# formatting for comma separators, https://github.com/benjaminrich/table1/issues/34
+
+render.continuous <- function(x, ...) {
+    with(stats.default(x, ...), c("",
+        "Mean (SD)"         = sprintf("%s (%s)",
+          signif_pad(MEAN,   3, big.mark=","),
+          signif_pad(SD,     3, big.mark=",")),
+        "Median [Min, Max]" = sprintf("%s [%s, %s]",
+          signif_pad(MEDIAN, 3, big.mark=","),
+          signif_pad(MIN,    3, big.mark=","),
+          signif_pad(MAX,    3, big.mark=","))))
+}
+
+
+render.categorical <- function(x, ...) {
+    c("", sapply(stats.apply.rounding(stats.default(x)), function(y) with(y,
+      sprintf("%s (%s%%)", prettyNum(FREQ, big.mark=","), PCT))))
+}
+
+render.strat <- function (label, n, ...) {
+    sprintf("<span class='stratlabel'>%s<br><span class='stratn'>(N=%s)</span></span>", 
+        label, prettyNum(n, big.mark=","))
+}
+
+
+```
+
+
+
+
+
 ## Outcome table including "other HSI"
 ```{r}
 
 # by casedef (keep "1" and "overall" columns)
 table1::table1(~ hsi + source + sex + age + sex + race_ethnic + grade + service + bmi + bmi_cat  | casedef, data = df_hsi_table_other)
+
+
+
+
+
+# by casedef (keep "1" and "overall" columns)
+table1::table1(~ hsi + source + sex + age + sex + race_ethnic + grade + service + bmi + bmi_cat  | casedef, data = df_hsi_table_other, render.continuous = render.continuous, render.categorical = render.categorical, render.strat = render.strat)
 
 
 ```
@@ -95,10 +147,68 @@ table1::table1(~ hsi + source + sex + age + sex + race_ethnic + grade + service 
 ```{r}
 
 table_1 <-
- table1::table1(~ hsi + source + sex + age + sex + race_ethnic + grade + service + bmi + bmi_cat  | casedef, data = df_hsi_table)    
+ table1::table1(~ hsi + source + sex + age + sex + race_ethnic + grade + service + bmi + bmi_cat  | casedef, data = df_hsi_table, , render.continuous = render.continuous, render.categorical = render.categorical, render.strat = render.strat)    
 
 table_1
 ```
+
+
+
+## Cross-Tabulation
+
+```{r}
+
+# Among Casedef
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  dplyr::count(age, grade, sex, race_ethnic)
+
+# age and grade
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  dplyr::count(age, grade)
+
+
+df_hsi_casedef <- 
+  df_hsi_table %>%
+  dplyr::filter(casedef == 1)
+
+age_grade_crosstab <-
+  gmodels::CrossTable(df_hsi_casedef$age, df_hsi_casedef$grade, prop.chisq = FALSE, chisq = TRUE)
+
+
+gmodels::CrossTable(df_hsi_casedef$age, df_hsi_casedef$grade, 
+                    prop.r = FALSE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+
+
+age_grade_crosstab 
+# write_rds(age_grade_crosstab, file = "output/age_grade_crosstab.rds")
+
+
+
+# race and service
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  dplyr::count(service, race_ethnic)
+
+
+gmodels::CrossTable(df_hsi_casedef$service, df_hsi_casedef$race_ethnic)
+
+race_service_crosstab <-
+  gmodels::CrossTable(df_hsi_casedef$service, df_hsi_casedef$race_ethnic, prop.chisq = FALSE, chisq = TRUE)
+
+race_service_crosstab
+# write_rds(race_service_crosstab, file = "output/race_service_crosstab.rds")
+
+
+
+
+```
+
+
 
 
 
@@ -151,7 +261,33 @@ table1::table1(~ bmi_cat |  hsi * source, data = df_hsi_table_bmi_other)
 
 
 ```{r}
+
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% count(service)
+
 # Case definition
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  group_by(year, hsi) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = hsi)) +
+    geom_point(size = 1.2) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Diagnosis") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 9)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+
+
+
+# ggsave(filename = "output/case_def_line_plot.tiff")
 
 df_hsi_table %>%
   dplyr::filter(casedef == 1) %>% 
@@ -166,7 +302,138 @@ df_hsi_table %>%
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 9))
 
-# ggsave(filename = "output/case_def_line_plot.png")
+
+
+
+
+# Plot facet: Type/ source
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  group_by(year, hsi, source) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = hsi)) +
+    facet_wrap(~source) +
+    geom_point(size = 1) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Diagnosis") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+
+# ggsave(filename = "output/hsi_type_source.tiff")
+
+
+
+# Service and Sex, Coast Guard and Unknown sex filtered
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1,
+                  !service %in% "Coast Guard",
+                  !sex %in% "Unknown") %>% 
+  group_by(year, service, sex) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = sex)) +
+    facet_wrap(~service) +
+    geom_point(size = 1) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Sex") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# ggsave(filename = "output/hsi_service_sex.tiff")
+
+
+
+# Race and Sex, Unknown sex filtered
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1,
+                  !sex %in% "Unknown") %>% 
+  group_by(year, race_ethnic, sex) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = race_ethnic)) +
+    facet_wrap(~sex) +
+    geom_point(size = 1) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Race/Ethnicity") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# ggsave(filename = "output/hsi_race_sex.tiff")
+
+
+
+
+
+# Service and race, Coast Guard filtered
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1,
+                !service %in% "Coast Guard") %>% 
+  group_by(year, service, race_ethnic) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = race_ethnic)) +
+    facet_wrap(~service) +
+    geom_point(size = 1) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Race/Ethnicity") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# Age Groups and Sex
+  # filter sex %in% 'Unknown' & age %in% NA
+
+df_hsi_table %>%
+  dplyr::filter(casedef == 1,
+                !sex %in% "Unknown",
+                !age %in% NA) %>% 
+  group_by(year, sex, age) %>%
+  summarise(n = dplyr::n()) %>%
+  ggplot(aes(x = year, y = n, color = age)) +
+    facet_wrap(~sex) +
+    geom_point(size = 1) +
+    geom_line(size = 1) +
+    geom_smooth(method = lm) +
+  labs(x = "Year",
+       y = "HSI cases",
+       color = "Age Group") +
+  theme_bw() +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
+  theme(legend.position = "bottom") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+
+
+
+## Table
+df_hsi_table %>%
+  dplyr::filter(casedef == 1) %>% 
+  group_by(year, hsi) %>%
+  summarise(n = dplyr::n()) %>% 
+  tidyr::pivot_wider(names_from = hsi, values_from = n) %>% 
+  mutate(sum = (`Heat Stroke` + `Heat Exhaustion`)) %>% View()
+
+
 
 # linear model 
 
@@ -237,7 +504,7 @@ df_hsi_table_other %>%
 cbp1 <- c("#999999", "#E69F00", "#56B4E9", "#009E73",
           "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
           "#999999", "#E69F00", "#56B4E9", "#009E73",
-          "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
+          "#F0E442", "#0072B2",  "#009E73", "#D55E00",
           "#999999", "#E69F00", "#56B4E9", "#009E73")
 
 
@@ -259,7 +526,7 @@ hsi_factors %>%
     scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
     scale_colour_manual(values = cbp1) +
     #scale_color_viridis(discrete = TRUE) +
-    scale_x_continuous(breaks = scales::pretty_breaks(10)) + 
+    scale_x_continuous(breaks = scales::pretty_breaks(10)) +
     labs(x = "Year",
          y = "HSI cases per 10,000")
 
@@ -267,9 +534,12 @@ hsi_factors %>%
 
 
 var_names <- as_labeller(
-     c(`age` = "Age", `grade` = "Grade",`race` = "Race", 
-       `service` = "Service",`sex` = "Sex"))
+     c(`age` = "Age Group", `grade` = "Grade Group",`race` = "Race / Ethnicity", 
+       `service` = "Service Branch",`sex` = "Sex"))
 
+
+
+# 5 panel horizontal plot
 
 hsi_factors %>%
    mutate(label = if_else(year == max(year), as.character(var), NA_character_),
@@ -288,12 +558,384 @@ hsi_factors %>%
     scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
     scale_colour_manual(values = cbp1) +
     #scale_color_viridis(discrete = TRUE) +
-    scale_x_continuous(breaks = scales::pretty_breaks(8)) + 
+    scale_y_continuous(breaks = scales::pretty_breaks(8)) + 
     labs(x = "Year",
          y = "HSI cases per 10,000") +
-    theme(axis.text.x = element_text(angle = 90)) 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+
+
+# 2 x 3 wrap plot
+
+hsi_factors %>%
+   mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+          Risk = risk * 10000) %>%
+   ggplot(aes(x = as.integer(year), y = Risk)) +
+    geom_line(aes(color = var), size = 1.5) +
+    geom_point(aes(shape = var), size = 1.5) +
+    facet_wrap(~cat, labeller = var_names, nrow = 3) +
+    geom_label_repel(aes(label = label),
+                  nudge_x = 0,
+                  size = 3,
+                  fontface = "bold",
+                  na.rm = TRUE) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
+    scale_colour_manual(values = cbp1) +
+    #scale_color_viridis(discrete = TRUE) +
+    scale_y_continuous(breaks = scales::pretty_breaks(8)) + 
+    labs(x = "Year",
+         y = "HSI cases per 10,000") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+# ggsave(filename = "output/risk_plot_2x3.tiff", device = "tiff", dpi = 500)
 
 # ggsave("output/risk_plot_horiz.png")  
 ```
+
+# Risk Table
+```{r}
+
+# Sum population
+
+hsi_factors %>%
+   mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+          Risk = risk * 10000) %>% 
+   dplyr::filter(var %in% "<20") %>%  # filter by unique Variable to get one per year
+   dplyr::select(year, sum_pop)
+  
+
+
+risk_table <-
+  hsi_factors %>%
+     mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+            Risk = risk * 10000) %>% 
+    dplyr::select(year, var, cat, Risk) %>% 
+    tidyr::pivot_wider(names_from = c(cat, var), values_from = Risk) 
+
+risk_table
+
+# write_csv(risk_table, file = "output/risk_table.csv")
+
+```
+
+
+
+
+# Observed / Expected
+
+```{r}
+
+hsi_factors %>%
+   mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+          Risk = risk * 10000) %>%
+   ggplot(aes(x = as.integer(year), y = prop_ratio)) +
+    geom_line(aes(color = var), size = 1.5) +
+    geom_point(aes(shape = var), size = 1.5) +
+    geom_hline(yintercept = 1, linetype = "dashed") +
+    facet_grid(~cat, labeller = var_names) +
+    geom_label_repel(aes(label = label),
+                  nudge_x = 0,
+                  size = 3,
+                  fontface = "bold",
+                  na.rm = TRUE) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
+    scale_colour_manual(values = cbp1) +
+    #scale_color_viridis(discrete = TRUE) +
+    scale_y_continuous(breaks = scales::pretty_breaks(8)) + 
+    labs(x = "Year",
+         y = "Subgroup HSI Observed / Expected Ratio") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
+
+# ggsave("output/risk_oe.png") 
+
+
+
+hsi_factors %>%
+   mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+          Risk = risk * 10000) %>%
+   ggplot(aes(x = as.integer(year), y = prop_ratio)) +
+    geom_line(aes(color = var), size = 1.5) +
+    geom_point(aes(shape = var), size = 1.5) +
+    geom_hline(yintercept = 1, linetype = "dashed") +
+    facet_wrap(~cat, labeller = var_names, nrow = 3) +
+    geom_label_repel(aes(label = label),
+                  nudge_x = 0,
+                  size = 3,
+                  fontface = "bold",
+                  na.rm = TRUE) +
+    theme_bw() +
+    theme(legend.position = "none") +
+    scale_shape_manual(values = rep(c(0:10, 12, 13, 15:20), 2)) +
+    scale_colour_manual(values = cbp1) +
+    #scale_color_viridis(discrete = TRUE) +
+    scale_y_continuous(breaks = scales::pretty_breaks(8)) + 
+    labs(x = "Year",
+         y = "Subgroup HSI Observed / Expected Ratio") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
+
+# ggsave("output/risk_oe.png") 
+# ggsave(filename = "output/oe_plot_2x3.tiff", device = "tiff", dpi = 500)
+
+
+
+
+# O/E Table
+
+oe_table <-
+  hsi_factors %>%
+     mutate(label = if_else(year == max(year), as.character(var), NA_character_),
+            Risk = risk * 10000) %>% 
+    dplyr::select(year, var, cat, prop_ratio) %>% 
+    tidyr::pivot_wider(names_from = c(cat, var), values_from = prop_ratio) 
+
+
+oe_table
+
+# write_csv(oe_table, file = "output/oe_table.csv")
+
+
+
+```
+
+
+## BMI 
+
+Restrict to Age < 25 for BMI analysis 
+
+
+```{r}
+
+df_bmi <-
+    df_hsi %>%
+    dplyr::filter(year > 1997 & year < 2020) %>% 
+     dplyr::select(source, age, sex, race_ethnic, service, grade, hsi, bmi, casedef, bmi_cat, year, d_event) %>% 
+       mutate(service = recode_factor(service,
+            "A" = "Army",
+            "N" = "Navy",
+            "F" = "Air Force",
+            "M" = "Marine Corps",
+            "C" = "Coast Guard"
+            ),
+            source = recode_factor(source,
+            "INPATIENT" = "In-Patient",
+            "OUTPATIENT" = "Out-Patient",
+            "RME" = "Reportable Event"),
+            hsi = recode_factor(hsi,
+            "heat_stroke" = "Heat Stroke",
+            "heat_exhaustion" = "Heat Exhaustion",
+            "other" = "Other"),
+            sex = recode_factor(sex,
+            "M" = "Male",
+            "F" = "Female",
+            "Z" = "Unknown")
+            ) %>%
+        dplyr::filter(!hsi %in% "Other",
+                    age %in% c("<20", "20-24"),
+                    casedef == 1) %>%  
+        haven::zap_label()
+
+
+
+df_bmi   
+
+```
+
+
+
+
+## BMI Tables
+
+```{r}
+
+# All
+
+table1::table1(~ hsi + sex + age + sex + grade + race_ethnic + casedef  | bmi_cat, data = df_bmi, render.continuous = render.continuous, render.categorical = render.categorical, render.strat = render.strat)
+
+table1::table1(~ bmi_cat + bmi | sex, data = df_bmi, render.continuous = render.continuous, render.categorical = render.categorical, render.strat = render.strat)
+
+
+```
+
+
+## BMI barplots
+```{r}
+
+
+# by year
+
+df_bmi %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+df_bmi %>%
+  filter(!bmi_cat %in% NA) %>% 
+  ggplot(aes(x = year, fill = bmi_cat)) +
+    geom_bar(position = position_fill()) +
+    theme_bw()
+
+
+```
+
+
+```{r}
+
+# boxplot
+
+df_bmi %>%
+  ggplot(aes(x = as.factor(year), y = bmi)) +
+    geom_boxplot() +
+    theme_bw()
+
+
+df_bmi %>%
+  ggplot(aes(x = as.factor(year), y = bmi)) +
+    geom_boxplot() +
+    facet_wrap(~sex) +
+    theme_bw()
+```
+
+
+```{r}
+
+# scatterplot vy year
+
+df_bmi %>% 
+  ggplot(aes(x = year, y = bmi)) +
+      geom_point() +
+      geom_smooth(method = "lm") +
+      theme_bw()
+
+
+df_bmi %>% 
+  ggplot(aes(x = year, y = bmi)) +
+      geom_point(alpha = 0.1) +
+      geom_smooth(method = "lm") +
+     facet_wrap(~sex) +
+      theme_bw() +
+  scale_y_continuous(breaks = scales::pretty_breaks(8)) +
+  labs(x = "Year",
+       y = "BMI (kg/m²)") 
+
+# ggsave("output/bmi_sex.png")
+
+```
+
+
+```{r}
+
+# scatterplot by day
+
+df_bmi %>% 
+  ggplot(aes(x = d_event, y = bmi)) +
+      geom_point() +
+      geom_smooth(method = "lm") +
+      theme_bw()
+
+
+df_bmi %>% 
+  ggplot(aes(x = d_event, y = bmi)) +
+      geom_point(alpha = 0.2) +
+      geom_smooth(method = "lm", fill = "cadetblue") +
+     facet_wrap(~sex) +
+      theme_bw() +
+  scale_y_continuous(breaks = scales::pretty_breaks(8)) +
+  labs(x = "Year",
+       y = "BMI (kg/m²)") 
+
+# ggsave(filename = "output/bmi_sex_day.tiff", device = "tiff", dpi = 500)
+# ggsave("output/bmi_sex_day.png")
+
+
+
+# BMI grid, sex/type
+df_bmi %>% 
+  ggplot(aes(x = d_event, y = bmi)) +
+      geom_point(alpha = 0.2) +
+      geom_smooth(method = "lm", fill = "cadetblue") +
+     facet_grid(hsi ~ sex) +
+      theme_bw() +
+  scale_y_continuous(breaks = scales::pretty_breaks(8)) +
+  labs(x = "Year",
+       y = "BMI (kg/m²)") 
+
+#ggsave(filename = "output/bmi_sex_day_type.tiff", device = "tiff", dpi = 500)
+
+
+df_bmi %>% 
+  ggplot(aes(x = d_event, y = bmi)) +
+      geom_point(alpha = 0.2) +
+      geom_smooth(method = "lm", size = 0.8, fill = "cadetblue") +
+     facet_grid(hsi + source ~ sex) +
+      theme_bw() +
+  scale_y_continuous(breaks = scales::pretty_breaks(8)) +
+  labs(x = "Year",
+       y = "BMI (kg/m²)") 
+
+# ggsave(filename = "output/bmi_sex_day_type_source.tiff", device = "tiff", dpi = 700, width = 5, height = 8, units = "in")
+
+```
+
+
+
+
+
+```{r}
+
+# Linear model by year
+
+df_bmi %>% 
+  lm(bmi ~ year, data = .) %>% 
+  broom::tidy()
+
+
+df_bmi %>% 
+  dplyr::filter(sex %in% "Male") %>% 
+  lm(bmi ~ year, data = .) %>% 
+  broom::tidy()
+
+
+df_bmi %>% 
+  dplyr::filter(sex %in% "Female") %>% 
+  lm(bmi ~ year, data = .) %>% 
+  broom::tidy()
+
+```
+
+
+
+
+
+```{r}
+
+# Linear model by day
+
+df_bmi %>% 
+  lm(bmi ~ d_event, data = .) %>% 
+  broom::tidy()
+
+
+df_bmi %>% 
+  dplyr::filter(sex %in% "Male") %>% 
+  lm(bmi ~ d_event, data = .) %>% 
+  broom::tidy()
+
+
+df_bmi %>% 
+  dplyr::filter(sex %in% "Female") %>% 
+  lm(bmi ~ d_event, data = .) %>% 
+  broom::tidy()
+
+```
+
+
+
+
+
+
 
 
