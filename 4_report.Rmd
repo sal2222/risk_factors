@@ -273,16 +273,16 @@ df_hsi_table %>%
   group_by(year, hsi) %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = hsi)) +
-    geom_point(size = 1.2) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = hsi)) +
+    geom_line(size = 1, aes(linetype = hsi)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = hsi)) +
   labs(x = "Year",
-       y = "HSI cases",
-       color = "Diagnosis") +
+       y = "HSI cases") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 9)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "HSI Type", linetype = "HSI Type", shape = "HSI Type", fill = "HSI Type")
 
 
 
@@ -313,19 +313,27 @@ df_hsi_table %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = hsi)) +
     facet_wrap(~source) +
-    geom_point(size = 1) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = hsi)) +
+    geom_line(size = 1, aes(linetype = hsi)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = hsi)) +
   labs(x = "Year",
        y = "HSI cases",
        color = "Diagnosis") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "HSI Type", linetype = "HSI Type", shape = "HSI Type", fill = "HSI Type")
 
 
 # ggsave(filename = "output/hsi_type_source.tiff")
+
+
+
+
+
+
+
 
 
 
@@ -339,16 +347,17 @@ df_hsi_table %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = sex)) +
     facet_wrap(~service) +
-    geom_point(size = 1) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = sex)) +
+    geom_line(size = 1, aes(linetype = sex)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = sex)) +
   labs(x = "Year",
        y = "HSI cases",
        color = "Sex") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "Sex", linetype = "Sex", shape = "Sex", fill = "Sex")
 
 # ggsave(filename = "output/hsi_service_sex.tiff")
 
@@ -363,16 +372,20 @@ df_hsi_table %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = race_ethnic)) +
     facet_wrap(~sex) +
-    geom_point(size = 1) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = race_ethnic)) +
+    geom_line(size = 1, aes(linetype = race_ethnic)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = race_ethnic)) +
   labs(x = "Year",
        y = "HSI cases",
        color = "Race/Ethnicity") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "Race / Ethnicity", linetype = "Race / Ethnicity", shape = "Race / Ethnicity", fill = "Race / Ethnicity") +
+  guides(color = guide_legend(nrow = 3),
+         linetype = guide_legend(nrow = 3), shape = guide_legend(nrow = 3), fill = guide_legend(nrow = 3)) +
+  theme(legend.text=element_text(size = 8))
 
 # ggsave(filename = "output/hsi_race_sex.tiff")
 
@@ -389,16 +402,24 @@ df_hsi_table %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = race_ethnic)) +
     facet_wrap(~service) +
-    geom_point(size = 1) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = race_ethnic)) +
+    geom_line(size = 1, aes(linetype = race_ethnic)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = race_ethnic)) +
   labs(x = "Year",
        y = "HSI cases",
        color = "Race/Ethnicity") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "Race / Ethnicity", linetype = "Race / Ethnicity", shape = "Race / Ethnicity", fill = "Race / Ethnicity") +
+  guides(color = guide_legend(nrow = 3),
+         linetype = guide_legend(nrow = 3), shape = guide_legend(nrow = 3), fill = guide_legend(nrow = 3)) +
+  theme(legend.text=element_text(size = 8))
+
+
+# ggsave(filename = "output/service_race.tiff")
+
 
 # Age Groups and Sex
   # filter sex %in% 'Unknown' & age %in% NA
@@ -411,17 +432,19 @@ df_hsi_table %>%
   summarise(n = dplyr::n()) %>%
   ggplot(aes(x = year, y = n, color = age)) +
     facet_wrap(~sex) +
-    geom_point(size = 1) +
-    geom_line(size = 1) +
-    geom_smooth(method = lm) +
+    geom_point(size = 1.2, aes(shape = age)) +
+    geom_line(size = 1, aes(linetype = age)) +
+    geom_smooth(method = lm, size = 0.5, alpha = 0.2, aes(fill = age)) +
   labs(x = "Year",
        y = "HSI cases",
        color = "Age Group") +
   theme_bw() +
   scale_x_continuous(breaks = scales::breaks_pretty(n = 6)) +
   theme(legend.position = "bottom") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(color  = "Age Group", linetype = "Age Group", shape = "Age Group", fill = "Age Group")
 
+# ggsave(filename = "output/age_sex.tiff")
 
 
 
