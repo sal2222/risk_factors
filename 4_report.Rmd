@@ -3,7 +3,7 @@
 title: "4_report"
 author: "SL"
 date: "5/17/2021"
-output: html_document
+output: github_document
 editor_options: 
   chunk_output_type: console
 ---
